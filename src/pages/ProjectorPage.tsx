@@ -1,4 +1,5 @@
-import { CATEGORIES, getTrackById } from "../data/tracks";
+import { useState, useEffect, useRef } from "react";
+import { CATEGORIES, getTrackById, isValidYoutubeVideoId } from "../data/tracks";
 import CategoryBoard from "../components/CategoryBoard";
 import TrackModal from "../components/TrackModal";
 import { useGameState } from "../hooks/useGameState";
@@ -7,14 +8,35 @@ import { useBuzzIns } from "../hooks/useBuzzIns";
 import { useProjectorSync } from "../hooks/useProjectorSync";
 
 const noop = () => {};
+const FADE_OUT_MS = 350;
 
 export default function ProjectorPage() {
   const { state } = useGameState();
   const { playerState } = usePlayerState();
   const { chosenTrackIds, scores } = useProjectorSync();
   const selectedTrackId = state.currentTrackId;
-  const buzzIns = useBuzzIns(selectedTrackId ?? null);
-  const selectedTrack = selectedTrackId ? getTrackById(selectedTrackId) : null;
+  const [closingTrackId, setClosingTrackId] = useState<string | null>(null);
+  const prevTrackIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (selectedTrackId === null && prevTrackIdRef.current !== null) {
+      setClosingTrackId(prevTrackIdRef.current);
+    } else if (selectedTrackId !== null) {
+      setClosingTrackId(null);
+    }
+    prevTrackIdRef.current = selectedTrackId;
+  }, [selectedTrackId]);
+
+  useEffect(() => {
+    if (!closingTrackId) return;
+    const t = setTimeout(() => setClosingTrackId(null), FADE_OUT_MS);
+    return () => clearTimeout(t);
+  }, [closingTrackId]);
+
+  const buzzIns = useBuzzIns(selectedTrackId ?? closingTrackId ?? null);
+  const displayTrackId = selectedTrackId ?? closingTrackId;
+  const selectedTrack = displayTrackId ? getTrackById(displayTrackId) : null;
+  const isClosing = !!closingTrackId && !selectedTrackId;
   const columnCount = CATEGORIES.length;
 
   return (
@@ -62,7 +84,7 @@ export default function ProjectorPage() {
           )}
         </div>
       </div>
-      {selectedTrack && (
+      {selectedTrack && isValidYoutubeVideoId(selectedTrack.youtubeVideoId) && (
         <TrackModal
           track={selectedTrack}
           onClose={noop}
@@ -73,6 +95,7 @@ export default function ProjectorPage() {
           onReveal={noop}
           syncedIsPlaying={playerState.isPlaying}
           syncedSeekTime={playerState.seekTime}
+          isClosing={isClosing}
         />
       )}
     </div>

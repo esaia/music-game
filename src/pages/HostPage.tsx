@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { CATEGORIES, getTrackById } from "../data/tracks";
+import { CATEGORIES, getTrackById, isValidYoutubeVideoId } from "../data/tracks";
 import CategoryBoard from "../components/CategoryBoard";
 import TrackModal from "../components/TrackModal";
 import { useGameState } from "../hooks/useGameState";
@@ -33,6 +33,8 @@ export default function HostPage() {
     void setPlayerState({ isPlaying: false, seekTime: 0 });
 
   const handleTrackSelect = (trackId: string) => {
+    const track = getTrackById(trackId);
+    if (!track || !isValidYoutubeVideoId(track.youtubeVideoId)) return;
     markChosen(trackId);
     setCurrentTrack(trackId);
     resetPlayerState();
@@ -196,7 +198,7 @@ export default function HostPage() {
           </div>
         )}
       </div>
-      {selectedTrack && (
+      {selectedTrack && isValidYoutubeVideoId(selectedTrack.youtubeVideoId) && (
         <TrackModal
           track={selectedTrack}
           onClose={handleCloseModal}

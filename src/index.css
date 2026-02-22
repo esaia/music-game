@@ -67,3 +67,16 @@ body {
 .animate-scale-in {
   animation: scale-in 0.4s cubic-bezier(0.83, 0, 0.17, 1) forwards;
 }
+
+@keyframes fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.animate-fade-out {
+  animation: fade-out 0.35s ease-in forwards;
+}

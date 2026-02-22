@@ -12,6 +12,13 @@ export type Category = {
   tracks: Track[];
 };
 
+/** Returns false for empty or invalid YouTube video ids so we can skip opening the player modal. */
+export function isValidYoutubeVideoId(id: string): boolean {
+  return (
+    typeof id === "string" && id.length === 11 && /^[a-zA-Z0-9_-]+$/.test(id)
+  );
+}
+
 const POINTS = [5, 10, 15, 20, 25, 30, 35] as const;
 
 function thumb(videoId: string) {
@@ -59,18 +66,18 @@ export const CATEGORIES: Category[] = [
   ]),
   makeTracks("georgian", "Georgia Hits", [
     {
-      videoId: FALLBACK_VIDEO_ID,
-      title: "Samshoblo (სამშობლო) – Nato Gelashvili / Various",
+      videoId: "1gQWf_ujY04",
+      title: "Me gadmovcurav Zgvas!",
     },
     {
-      videoId: FALLBACK_VIDEO_ID,
-      title: "Qari Qris (ქარი ქრის) – Stepane & 3G",
+      videoId: "r4HaxuxNaRI",
+      title: "ჩემო თბილის ქალაქო",
     },
+    { videoId: "l7bjfR9muNs", title: "Tamada - Piramde" },
     {
-      videoId: FALLBACK_VIDEO_ID,
-      title: "Kviteli Fotlebi (ყვითელი ფოთლები) – Giya Kancheli",
+      videoId: "Ai3nowbLU8",
+      title: "მუხამბაზი",
     },
-    { videoId: FALLBACK_VIDEO_ID, title: "Tbilisi – Mgzavrebi" },
     { videoId: FALLBACK_VIDEO_ID, title: "Sulkhan-Saba – Trio Mandili" },
     {
       videoId: FALLBACK_VIDEO_ID,

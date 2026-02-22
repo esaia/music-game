@@ -19,7 +19,7 @@ export default function Star({
       onClick={onClick}
       aria-label={`${track.points} points${isChosen ? " (already chosen)" : ""}`}
       className="flex w-full cursor-pointer items-center justify-center rounded-2xl px-2 py-2 text-white"
-      style={{ opacity: isChosen ? 0.5 : 1 }}
+      style={{ opacity: isChosen ? 0.2 : 1 }}
     >
       <div className="relative h-24 w-full max-w-28 md:max-w-32">
         <svg

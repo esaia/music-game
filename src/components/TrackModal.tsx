@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import type { Track } from "../data/tracks";
-import { getCategoryByTrackId } from "../data/tracks";
+import { CATEGORIES, getCategoryByTrackId } from "../data/tracks";
+
+const KAHOOT_COLORS = ["#45a3e5", "#ff3355", "#66bf39", "#eb670f"] as const;
 
 type BuzzInEntry = { teamId: string; teamName: string; timestamp?: number };
 
@@ -34,6 +36,8 @@ type TrackModalProps = {
   syncedIsPlaying?: boolean;
   syncedSeekTime?: number;
   alwaysShowTitleAndPreview?: boolean;
+  /** When true, play fade-out animation (e.g. projector when host closes) */
+  isClosing?: boolean;
 };
 
 const PLAYER_CONTAINER_ID = "youtube-player-container";
@@ -68,9 +72,11 @@ export default function TrackModal({
   syncedIsPlaying,
   syncedSeekTime,
   alwaysShowTitleAndPreview = false,
+  isClosing = false,
 }: TrackModalProps) {
   const [localRevealed, setLocalRevealed] = useState(false);
   const [apiReady, setApiReady] = useState(Boolean(window.YT?.Player));
+  const [playerReady, setPlayerReady] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -88,6 +94,15 @@ export default function TrackModal({
   } | null>(null);
   const isSeekingRef = useRef(false);
   const timeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const syncedStateRef = useRef({ isPlaying: false, seekTime: 0 });
+  const onPlayerStateChangeRef = useRef(onPlayerStateChange);
+  const slaveWasPlayingRef = useRef(false);
+  const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [playerRetryKey, setPlayerRetryKey] = useState(0);
+  const [slaveProgressTime, setSlaveProgressTime] = useState(0);
+  const lastSyncedSeekRef = useRef(0);
+  const lastSyncedAtRef = useRef(0);
+  onPlayerStateChangeRef.current = onPlayerStateChange;
 
   isSeekingRef.current = isSeeking;
 
@@ -95,32 +110,108 @@ export default function TrackModal({
   const isSlave = syncedIsPlaying !== undefined;
   const category = getCategoryByTrackId(track.id);
 
+  // Keep latest synced state in a ref so onReady can apply it when player becomes ready
+  useEffect(() => {
+    if (!isSlave) return;
+    const seek =
+      typeof syncedSeekTime === "number" && syncedSeekTime >= 0
+        ? syncedSeekTime
+        : 0;
+    syncedStateRef.current = {
+      isPlaying: Boolean(syncedIsPlaying),
+      seekTime: seek,
+    };
+    lastSyncedSeekRef.current = seek;
+    lastSyncedAtRef.current = Date.now();
+    setSlaveProgressTime(seek);
+  }, [isSlave, syncedIsPlaying, syncedSeekTime]);
+
+  // Projector: smooth progress bar when playing (interpolate between host's 1s updates)
+  useEffect(() => {
+    if (!isSlave || !syncedIsPlaying) return;
+    const id = setInterval(() => {
+      setSlaveProgressTime(
+        lastSyncedSeekRef.current + (Date.now() - lastSyncedAtRef.current) / 1000,
+      );
+    }, 200);
+    return () => clearInterval(id);
+  }, [isSlave, syncedIsPlaying]);
+
   useEffect(() => {
     loadYouTubeAPI(() => setApiReady(true));
   }, []);
 
-  useEffect(() => {
-    if (!isSlave || !playerRef.current) return;
-    const p = playerRef.current;
-    if (
-      typeof syncedSeekTime === "number" &&
-      syncedSeekTime >= 0 &&
-      typeof p.seekTo === "function"
-    ) {
-      p.seekTo(syncedSeekTime, true);
+  const DRIFT_SEEK_THRESHOLD = 4; // only correct projector position when drift exceeds this (seconds) — keeps sync without 2s steps
+  const applySyncedState = (p: NonNullable<typeof playerRef.current>) => {
+    const { seekTime, isPlaying } = syncedStateRef.current;
+    const wasAlreadyPlaying = slaveWasPlayingRef.current;
+    const shouldSeek =
+      typeof seekTime === "number" &&
+      seekTime >= 0 &&
+      typeof p.seekTo === "function" &&
+      (isPlaying && !wasAlreadyPlaying
+        ? true
+        : isPlaying &&
+          wasAlreadyPlaying &&
+          (() => {
+            const current =
+              typeof p.getCurrentTime === "function" ? p.getCurrentTime() : 0;
+            return Math.abs(current - seekTime) > DRIFT_SEEK_THRESHOLD;
+          })());
+    if (shouldSeek) {
+      p.seekTo!(seekTime, true);
     }
-    if (syncedIsPlaying && typeof p.playVideo === "function") {
+    if (isPlaying && typeof p.playVideo === "function") {
       p.playVideo();
     } else if (typeof p.pauseVideo === "function") {
       p.pauseVideo();
     }
-  }, [isSlave, syncedSeekTime, syncedIsPlaying]);
+    slaveWasPlayingRef.current = isPlaying;
+  };
+
+  useEffect(() => {
+    if (!isSlave || !playerRef.current) return;
+    applySyncedState(playerRef.current);
+  }, [isSlave, syncedSeekTime, syncedIsPlaying, playerReady]);
+
+  // Projector: re-apply sync when tab becomes visible; retry creating player if it never became ready (e.g. tab was in background)
+  useEffect(() => {
+    if (!isSlave) return;
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      const p = playerRef.current;
+      if (p) {
+        applySyncedState(p);
+      } else {
+        setPlayerRetryKey((k) => k + 1);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [isSlave]);
+
+  // Host: push current time to Firebase periodically while playing so projector stays in sync
+  useEffect(() => {
+    if (isSlave || !onPlayerStateChangeRef.current) return;
+    if (!isPlaying) return;
+    const id = setInterval(() => {
+      const p = playerRef.current;
+      if (!p || typeof p.getCurrentTime !== "function") return;
+      const t = p.getCurrentTime();
+      if (typeof t === "number" && !Number.isNaN(t)) {
+        onPlayerStateChangeRef.current?.({ isPlaying: true, seekTime: t });
+      }
+    }, 1000);
+    return () => clearInterval(id);
+  }, [isSlave, isPlaying]);
 
   useEffect(() => {
     if (!apiReady || !track) return;
     const el = document.getElementById(PLAYER_CONTAINER_ID);
     if (!el) return;
-    const player = new window.YT!.Player(PLAYER_CONTAINER_ID, {
+    let player: NonNullable<typeof playerRef.current> | undefined;
+    try {
+      player = new window.YT!.Player(PLAYER_CONTAINER_ID, {
       videoId: track.youtubeVideoId,
       width: "1",
       height: "1",
@@ -135,7 +226,17 @@ export default function TrackModal({
       },
       events: {
         onReady: () => {
+          if (!player) return;
           playerRef.current = player;
+          if (isSlave) {
+            setPlayerReady(true);
+            applySyncedState(player);
+            syncTimeoutRef.current = setTimeout(() => {
+              const p = playerRef.current;
+              if (p) applySyncedState(p);
+              syncTimeoutRef.current = null;
+            }, 500);
+          }
           if (typeof player.getDuration === "function") {
             const d = player.getDuration();
             if (d && !Number.isNaN(d)) setDuration(d);
@@ -162,18 +263,26 @@ export default function TrackModal({
         },
       },
     });
+    } catch (err) {
+      onClose?.();
+      return () => {};
+    }
     return () => {
+      if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+      syncTimeoutRef.current = null;
       if (timeIntervalRef.current) clearInterval(timeIntervalRef.current);
       timeIntervalRef.current = null;
-      if (typeof player.destroy === "function") player.destroy();
+      if (player && typeof player.destroy === "function") player.destroy();
       playerRef.current = null;
+      slaveWasPlayingRef.current = false;
+      setPlayerReady(false);
       setCurrentTime(0);
       setDuration(0);
       setIsPlaying(false);
       setWaitingForPlay(false);
       setIsBuffering(false);
     };
-  }, [apiReady, track.id, track.youtubeVideoId]);
+  }, [apiReady, track.id, track.youtubeVideoId, playerRetryKey]);
 
   useEffect(() => {
     const p = playerRef.current;
@@ -223,7 +332,7 @@ export default function TrackModal({
 
   return (
     <div
-      className="animate-fade-in fixed inset-0 z-[1000] flex h-screen items-center justify-center bg-black/80 "
+      className={`fixed inset-0 z-[1000] flex h-screen items-center justify-center bg-black/80 ${isClosing ? "animate-fade-out pointer-events-none" : "animate-fade-in"}`}
       onClick={onClose}
     >
       <div
@@ -243,7 +352,13 @@ export default function TrackModal({
 
         {category && (
           <div className="animate-fade-down mb-3 mt-2 flex flex-wrap items-center justify-center gap-2">
-            <span className="rounded-full bg-white/15 px-4 py-2 text-base font-semibold text-white backdrop-blur-sm md:text-lg">
+            <span
+              className="rounded-full px-4 py-2 text-base font-semibold text-white shadow-md md:text-lg"
+              style={{
+                backgroundColor:
+                  KAHOOT_COLORS[CATEGORIES.findIndex((c) => c.id === category.id) % KAHOOT_COLORS.length],
+              }}
+            >
               {category.name}
             </span>
             <span className="inline-flex items-center gap-1.5 rounded-full bg-kahoot-purple px-4 py-2 text-base font-bold text-white shadow-lg md:text-lg">
@@ -318,19 +433,23 @@ export default function TrackModal({
             )}
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 text-xl text-white/90">
-                <span>{formatSeconds(currentTime)}</span>
+                <span>
+                  {formatSeconds(isSlave ? slaveProgressTime : currentTime)}
+                </span>
                 <input
                   type="range"
                   min={0}
                   max={duration || 100}
                   step={0.1}
-                  value={currentTime}
+                  value={isSlave ? slaveProgressTime : currentTime}
                   onChange={handleSeek}
                   onMouseDown={handleSeekStart}
                   onTouchStart={handleSeekStart}
                   onMouseUp={handleSeekEnd}
                   onTouchEnd={handleSeekEnd}
-                  className="h-3 w-full cursor-pointer appearance-none rounded-full bg-white/30 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
+                  disabled={isSlave}
+                  readOnly={isSlave}
+                  className="h-3 w-full cursor-pointer appearance-none rounded-full bg-white/30 disabled:cursor-default [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
                 />
                 <span>{formatSeconds(duration || 0)}</span>
               </div>
