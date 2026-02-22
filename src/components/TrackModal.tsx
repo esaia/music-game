@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import type { Track } from "../data/tracks";
+import { getCategoryByTrackId } from "../data/tracks";
 
 type BuzzInEntry = { teamId: string; teamName: string; timestamp?: number };
 
@@ -26,15 +27,12 @@ type TrackModalProps = {
   onAwardScore?: (teamKey: string, teamName: string) => void;
   revealed?: boolean;
   onReveal?: () => void;
-  /** When provided, host writes play/seek state so projector can sync */
   onPlayerStateChange?: (state: {
     isPlaying: boolean;
     seekTime: number;
   }) => void;
-  /** When provided, modal is driven by synced state (projector view) */
   syncedIsPlaying?: boolean;
   syncedSeekTime?: number;
-  /** When true, always show title and preview in modal (host view) */
   alwaysShowTitleAndPreview?: boolean;
 };
 
@@ -95,12 +93,12 @@ export default function TrackModal({
 
   const revealed = revealedProp ?? localRevealed;
   const isSlave = syncedIsPlaying !== undefined;
+  const category = getCategoryByTrackId(track.id);
 
   useEffect(() => {
     loadYouTubeAPI(() => setApiReady(true));
   }, []);
 
-  // Projector: apply synced play/seek state to player (seek first, then play/pause)
   useEffect(() => {
     if (!isSlave || !playerRef.current) return;
     const p = playerRef.current;
@@ -208,9 +206,6 @@ export default function TrackModal({
     onPlayerStateChange?.({ isPlaying: nextPlaying, seekTime: t });
   };
 
-  const displayPlaying = isSlave ? syncedIsPlaying : isPlaying;
-  const showPlayLoading = isSlave ? false : waitingForPlay || isBuffering;
-
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     const p = playerRef.current;
     if (!p || typeof p.seekTo !== "function") return;
@@ -223,13 +218,16 @@ export default function TrackModal({
   const handleSeekStart = () => setIsSeeking(true);
   const handleSeekEnd = () => setIsSeeking(false);
 
+  const displayPlaying = isSlave ? syncedIsPlaying : isPlaying;
+  const showPlayLoading = isSlave ? false : waitingForPlay || isBuffering;
+
   return (
     <div
-      className="animate-fade-in fixed inset-0 z-[1000] flex h-screen items-center justify-center bg-black/80 p-3"
+      className="animate-fade-in fixed inset-0 z-[1000] flex h-screen items-center justify-center bg-black/80 "
       onClick={onClose}
     >
       <div
-        className="relative flex h-full max-h-[100vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl  p-4 text-white"
+        className="relative flex h-full max-h-screen w-full max-w-2xl flex-col overflow-hidden rounded-2xl pt-8 p-4 text-white"
         onClick={(e) => e.stopPropagation()}
       >
         {!isSlave && (
@@ -237,19 +235,36 @@ export default function TrackModal({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="absolute right-2 top-2 flex h-12 w-12 cursor-pointer items-center justify-center rounded-full border-0 bg-white/20 text-3xl leading-none text-white"
+            className="absolute right-2 top-2 z-10 flex h-12 w-12 cursor-pointer items-center justify-center rounded-full border-0 bg-white/20 text-3xl leading-none text-white"
           >
             ×
           </button>
         )}
 
-        {/* Hidden YouTube player (audio only) */}
+        {category && (
+          <div className="animate-fade-down mb-3 mt-2 flex flex-wrap items-center justify-center gap-2">
+            <span className="rounded-full bg-white/15 px-4 py-2 text-base font-semibold text-white backdrop-blur-sm md:text-lg">
+              {category.name}
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-kahoot-purple px-4 py-2 text-base font-bold text-white shadow-lg md:text-lg">
+              <svg
+                className="h-5 w-5"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden
+              >
+                <path d="M9.15316 5.40838C10.4198 3.13613 11.0531 2 12 2C12.9469 2 13.5802 3.13612 14.8468 5.40837L15.1745 5.99623C15.5345 6.64193 15.7144 6.96479 15.9951 7.17781C16.2757 7.39083 16.6251 7.4699 17.3241 7.62805L17.9605 7.77203C20.4201 8.32856 21.65 8.60682 21.9426 9.54773C22.2352 10.4886 21.3968 11.4691 19.7199 13.4299L19.2861 13.9372C18.8096 14.4944 18.5713 14.773 18.4641 15.1177C18.357 15.4624 18.393 15.8341 18.465 16.5776L18.5306 17.2544C18.7841 19.8706 18.9109 21.1787 18.1449 21.7602C17.3788 22.3417 16.2273 21.8115 13.9243 20.7512L13.3285 20.4768C12.6741 20.1755 12.3469 20.0248 12 20.0248C11.6531 20.0248 11.3259 20.1755 10.6715 20.4768L10.0757 20.7512C7.77268 21.8115 6.62118 22.3417 5.85515 21.7602C5.08912 21.1787 5.21588 19.8706 5.4694 17.2544L5.53498 16.5776C5.60703 15.8341 5.64305 15.4624 5.53586 15.1177C5.42868 14.773 5.19043 14.4944 4.71392 13.9372L4.2801 13.4299C2.60325 11.4691 1.76482 10.4886 2.05742 9.54773C2.35002 8.60682 3.57986 8.32856 6.03954 7.77203L6.67589 7.62805C7.37485 7.4699 7.72433 7.39083 8.00494 7.17781C8.28555 6.96479 8.46553 6.64194 8.82547 5.99623L9.15316 5.40838Z" />
+              </svg>
+              {track.points} pts
+            </span>
+          </div>
+        )}
+
         <div className="absolute -left-[9999px] top-0 h-px w-px overflow-hidden">
           <div id={PLAYER_CONTAINER_ID} className="h-full w-full" />
         </div>
 
-        {/* Custom audio control */}
-        <div className="animate-fade-down mb-3 shrink-0 rounded-2xl bg-black/20 mt-20 p-4">
+        <div className="animate-fade-down mb-3 mt-2 shrink-0 rounded-2xl bg-black/20 p-4">
           <div className="flex items-center gap-4">
             {!isSlave && (
               <button
@@ -257,9 +272,13 @@ export default function TrackModal({
                 onClick={handlePlayPause}
                 disabled={showPlayLoading}
                 aria-label={
-                  showPlayLoading ? "Loading" : displayPlaying ? "Pause" : "Play"
+                  showPlayLoading
+                    ? "Loading"
+                    : displayPlaying
+                      ? "Pause"
+                      : "Play"
                 }
-                className="flex h-14 w-14 shrink-0 cursor-pointer items-center justify-center rounded-full bg-white text-[#46178f] disabled:cursor-wait disabled:opacity-90"
+                className="flex h-14 w-14 shrink-0 cursor-pointer items-center justify-center rounded-full bg-white text-kahoot-purple disabled:cursor-wait disabled:opacity-90"
               >
                 {showPlayLoading ? (
                   <svg
@@ -298,25 +317,25 @@ export default function TrackModal({
               </button>
             )}
             <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 text-xl text-white/90">
-                  <span>{formatSeconds(currentTime)}</span>
-                  <input
-                    type="range"
-                    min={0}
-                    max={duration || 100}
-                    step={0.1}
-                    value={currentTime}
-                    onChange={handleSeek}
-                    onMouseDown={handleSeekStart}
-                    onTouchStart={handleSeekStart}
-                    onMouseUp={handleSeekEnd}
-                    onTouchEnd={handleSeekEnd}
-                    className="h-3 w-full cursor-pointer appearance-none rounded-full bg-white/30 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
-                  />
-                  <span>{formatSeconds(duration || 0)}</span>
-                </div>
+              <div className="flex items-center gap-2 text-xl text-white/90">
+                <span>{formatSeconds(currentTime)}</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={duration || 100}
+                  step={0.1}
+                  value={currentTime}
+                  onChange={handleSeek}
+                  onMouseDown={handleSeekStart}
+                  onTouchStart={handleSeekStart}
+                  onMouseUp={handleSeekEnd}
+                  onTouchEnd={handleSeekEnd}
+                  className="h-3 w-full cursor-pointer appearance-none rounded-full bg-white/30 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
+                />
+                <span>{formatSeconds(duration || 0)}</span>
               </div>
             </div>
+          </div>
         </div>
 
         {!isSlave && (
@@ -324,7 +343,7 @@ export default function TrackModal({
             <button
               type="button"
               onClick={handleRevealToggle}
-              className="cursor-pointer rounded-2xl bg-white px-6 py-3 text-xl font-bold text-[#46178f]"
+              className="cursor-pointer rounded-2xl bg-white px-6 py-3 text-xl font-bold text-kahoot-purple"
             >
               {revealed ? "Hide title & photo" : "Reveal title & photo"}
             </button>
@@ -347,7 +366,9 @@ export default function TrackModal({
 
           {buzzIns.length > 0 && (
             <div>
-              <h4 className="mb-2 text-xl font-bold md:text-2xl">Teams with answer</h4>
+              <h4 className="mb-2 text-xl font-bold md:text-2xl">
+                Teams with answer
+              </h4>
               <ul className="space-y-2">
                 {[...buzzIns]
                   .sort(
@@ -365,7 +386,7 @@ export default function TrackModal({
                     >
                       <span className="min-w-0 flex-1 text-xl">
                         {index === 0 && (
-                          <span className="mr-2 rounded bg-white px-2 py-0.5 text-sm font-bold text-[#46178f]">
+                          <span className="mr-2 rounded bg-white px-2 py-0.5 text-sm font-bold text-kahoot-purple">
                             First
                           </span>
                         )}
@@ -385,7 +406,7 @@ export default function TrackModal({
                                 onAwardScore(teamId, teamName);
                                 onClose();
                               }}
-                              className="cursor-pointer rounded-xl bg-white px-4 py-2 text-base font-bold text-[#46178f]"
+                              className="cursor-pointer rounded-xl bg-white px-4 py-2 text-base font-bold text-kahoot-purple"
                               title="Team guessed correctly (+points)"
                             >
                               Correct

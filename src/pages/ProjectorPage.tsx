@@ -18,7 +18,7 @@ export default function ProjectorPage() {
   const columnCount = CATEGORIES.length;
 
   return (
-    <div className="pointer-events-none flex h-screen cursor-none flex-col overflow-hidden p-3">
+    <div className=" flex h-screen cursor-none flex-col overflow-hidden p-3">
       <div className="flex h-full flex-col">
         <div className="flex min-h-0 flex-1 gap-3 overflow-hidden">
           <div

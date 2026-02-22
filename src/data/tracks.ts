@@ -12,7 +12,7 @@ export type Category = {
   tracks: Track[];
 };
 
-const POINTS = [5, 10, 15, 20, 25] as const;
+const POINTS = [5, 10, 15, 20, 25, 30, 35] as const;
 
 function thumb(videoId: string) {
   return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
@@ -21,7 +21,7 @@ function thumb(videoId: string) {
 function makeTracks(
   categoryId: string,
   categoryName: string,
-  items: { videoId: string; title: string }[]
+  items: { videoId: string; title: string }[],
 ): Category {
   return {
     id: categoryId,
@@ -36,34 +36,75 @@ function makeTracks(
   };
 }
 
+const FALLBACK_VIDEO_ID = "dQw4w9WgXcQ";
+
 export const CATEGORIES: Category[] = [
   makeTracks("modern", "Modern", [
-    { videoId: "oygrmJFKYZY", title: "Dua Lipa – Don't Start Now" },
-    { videoId: "gdZLi9oWNZg", title: "BTS – Dynamite" },
-    { videoId: "4NRXx6U8ABQ", title: "The Weeknd – Blinding Lights" },
-    { videoId: "Nj2U6rhnucI", title: "Dua Lipa – Break My Heart" },
-    { videoId: "vImvzQCb0o8", title: "Demi Lovato – I Love Me" },
+    { videoId: "G7KNmW9a75Y", title: "Flowers – Miley Cyrus" },
+    { videoId: "4NRXx6U8ABQ", title: "Blinding Lights – The Weeknd" },
+    { videoId: "H5v3kku4y6Q", title: "As It Was – Harry Styles" },
+    { videoId: "eVli-tstM5E", title: "Espresso – Sabrina Carpenter" },
+    { videoId: "ZAfAud_M_fo", title: "Anti-Hero – Taylor Swift" },
+    { videoId: "Nj2U6rhnucI", title: "Levitating – Dua Lipa" },
+    { videoId: "RlPNh_PBZb4", title: "Vampire – Olivia Rodrigo" },
   ]),
-  makeTracks("georgian", "Georgian", [
-    { videoId: "wp43OdtAAkM", title: "11111 Basiani Ensemble – Georgian Polyphony (Religious Songs)" },
-    { videoId: "ZkuXyTsMRTI", title: "Ansambli Qartvelo – Polyphonic Georgian Songs" },
-    { videoId: "TNblli7kZik", title: "Georgian traditional polyphonic – Shen xar venaxi" },
-    { videoId: "mC9oh_Q6UDo", title: "Nanina – Iruli chqimda (Georgian polyphonic)" },
-    { videoId: "X7E91Pe_5dA", title: "Georgian Folk – Polyphonic Song from Svaneti" },
+  makeTracks("oldclassic", "Old Classics", [
+    { videoId: "fJ9rUzIMcZQ", title: "Bohemian Rhapsody – Queen" },
+    { videoId: "Zi_XLOBDo_Y", title: "Billie Jean – Michael Jackson" },
+    { videoId: "09839DpTctU", title: "Hotel California – Eagles" },
+    { videoId: "xFrGuyw1V8s", title: "Dancing Queen – ABBA" },
+    { videoId: "1w7OgIMMRc4", title: "Sweet Child O' Mine – Guns N' Roses" },
+    { videoId: "fNFzfwOE66U", title: "Stayin' Alive – Bee Gees" },
+    { videoId: "hTWKbfoikeg", title: "Smells Like Teen Spirit – Nirvana" },
   ]),
-  makeTracks("oldclassic", "Old classic", [
-    { videoId: "NbaImWFT89U", title: "Righteous Brothers – Unchained Melody" },
-    { videoId: "3P4XB3bM9iA", title: "Golden Oldies – 60s & 70s Hits" },
-    { videoId: "NoNw_b2vcDQ", title: "Oldies But Goodies – 50s & 60s" },
-    { videoId: "Y-9Y4CCIWnM", title: "Chuck Berry – Johnny B. Goode" },
-    { videoId: "-eHJ12Vhpyc", title: "Elvis Presley – Hound Dog" },
+  makeTracks("georgian", "Georgia Hits", [
+    {
+      videoId: FALLBACK_VIDEO_ID,
+      title: "Samshoblo (სამშობლო) – Nato Gelashvili / Various",
+    },
+    {
+      videoId: FALLBACK_VIDEO_ID,
+      title: "Qari Qris (ქარი ქრის) – Stepane & 3G",
+    },
+    {
+      videoId: FALLBACK_VIDEO_ID,
+      title: "Kviteli Fotlebi (ყვითელი ფოთლები) – Giya Kancheli",
+    },
+    { videoId: FALLBACK_VIDEO_ID, title: "Tbilisi – Mgzavrebi" },
+    { videoId: FALLBACK_VIDEO_ID, title: "Sulkhan-Saba – Trio Mandili" },
+    {
+      videoId: FALLBACK_VIDEO_ID,
+      title: "Ghazali (ღაზალი) – Hamlet Gonashvili",
+    },
+    { videoId: FALLBACK_VIDEO_ID, title: "Is evari – Tbilisuri Quarteti" },
   ]),
-  makeTracks("movie", "Movie music", [
-    { videoId: "5fH2FOn1V5g", title: "The Sound of Music – Opening" },
-    { videoId: "fJ9rUzIMcZQ", title: "Queen – Bohemian Rhapsody" },
-    { videoId: "IMD5-Sc6v9g", title: "John Williams – Schindler's List Theme" },
-    { videoId: "78N2SP6JFaI", title: "John Williams – Superman Main Theme" },
-    { videoId: "tCr5BhPqUjk", title: "James Bond Theme (Dr. No)" },
+  makeTracks("movie", "Movie Music", [
+    {
+      videoId: "91zaz3DiEic",
+      title: "My Heart Will Go On – Celine Dion (Titanic)",
+    },
+    { videoId: "btPJPFnesV4", title: "Eye of the Tiger – Survivor (Rocky)" },
+    {
+      videoId: "DtB7pFkVFp0",
+      title: "Imperial March – John Williams (Star Wars)",
+    },
+    {
+      videoId: "3K0R2jJK5oE",
+      title:
+        "He's a Pirate – Klaus Badelt/Hans Zimmer (Pirates of the Caribbean)",
+    },
+    {
+      videoId: "tan5p4b4N_s",
+      title: "Shallow – Lady Gaga & Bradley Cooper (A Star Is Born)",
+    },
+    {
+      videoId: "GibiNy4d4gc",
+      title: "Circle of Life – Elton John (The Lion King)",
+    },
+    {
+      videoId: "Htaj3o3JD7I",
+      title: "Hedwig's Theme – John Williams (Harry Potter)",
+    },
   ]),
 ];
 
@@ -71,6 +112,13 @@ export function getTrackById(trackId: string): Track | undefined {
   for (const cat of CATEGORIES) {
     const track = cat.tracks.find((t) => t.id === trackId);
     if (track) return track;
+  }
+  return undefined;
+}
+
+export function getCategoryByTrackId(trackId: string): Category | undefined {
+  for (const cat of CATEGORIES) {
+    if (cat.tracks.some((t) => t.id === trackId)) return cat;
   }
   return undefined;
 }
