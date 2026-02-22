@@ -2,14 +2,7 @@
   "rules": {
     "game": {
       ".read": true,
-      "state": {
-        ".write": true
-      },
-      "buzzIns": {
-        "$trackId": {
-          ".write": true
-        }
-      }
+      ".write": true
     }
   }
 }

@@ -10,13 +10,20 @@ type CategoryBoardProps = {
   onTrackSelect: (trackId: string) => void;
 };
 
-export default function CategoryBoard({ category, chosenTrackIds, colorIndex, onTrackSelect }: CategoryBoardProps) {
+export default function CategoryBoard({
+  category,
+  chosenTrackIds,
+  colorIndex,
+  onTrackSelect,
+}: CategoryBoardProps) {
   const bgColor = KAHOOT_COLORS[colorIndex % KAHOOT_COLORS.length];
 
   return (
     <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl bg-black/20 p-3">
-      <h2 className="mb-2 shrink-0 text-xl font-bold md:text-2xl">{category.name}</h2>
-      <div className="flex min-h-0 flex-1 flex-col gap-2">
+      <h2 className="mb-2 shrink-0 text-xl font-bold md:text-2xl">
+        {category.name}
+      </h2>
+      <div className="grid grid-cols-2 min-h-0 flex-1 flex-col gap-2 max-h-[500px]">
         {category.tracks.map((track) => (
           <Star
             key={track.id}

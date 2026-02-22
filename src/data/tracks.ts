@@ -19,7 +19,7 @@ export function isValidYoutubeVideoId(id: string): boolean {
   );
 }
 
-const POINTS = [5, 10, 15, 20, 25, 30, 35] as const;
+const POINTS = [5, 10, 15] as const;
 
 function thumb(videoId: string) {
   return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
@@ -33,13 +33,16 @@ function makeTracks(
   return {
     id: categoryId,
     name: categoryName,
-    tracks: POINTS.map((points, i) => ({
-      id: `${categoryId}-${points}`,
-      points,
-      youtubeVideoId: items[i]?.videoId ?? "dQw4w9WgXcQ",
-      title: items[i]?.title ?? `${categoryName} Track ${i + 1}`,
-      photoUrl: thumb(items[i]?.videoId ?? "dQw4w9WgXcQ"),
-    })),
+    tracks: items.map((item, i) => {
+      const points = POINTS[i % POINTS.length];
+      return {
+        id: `${categoryId}-${i}`,
+        points,
+        youtubeVideoId: item?.videoId ?? "dQw4w9WgXcQ",
+        title: item?.title ?? `${categoryName} Track ${i + 1}`,
+        photoUrl: thumb(item?.videoId ?? "dQw4w9WgXcQ"),
+      };
+    }),
   };
 }
 
@@ -48,12 +51,12 @@ const FALLBACK_VIDEO_ID = "dQw4w9WgXcQ";
 export const CATEGORIES: Category[] = [
   makeTracks("modern", "Modern", [
     { videoId: "G7KNmW9a75Y", title: "Flowers – Miley Cyrus" },
-    { videoId: "4NRXx6U8ABQ", title: "Blinding Lights – The Weeknd" },
+    { videoId: "oygrmJFKYZY", title: "Dua Lipa - Don't Start Now" },
     { videoId: "H5v3kku4y6Q", title: "As It Was – Harry Styles" },
     { videoId: "eVli-tstM5E", title: "Espresso – Sabrina Carpenter" },
-    { videoId: "ZAfAud_M_fo", title: "Anti-Hero – Taylor Swift" },
-    { videoId: "Nj2U6rhnucI", title: "Levitating – Dua Lipa" },
-    { videoId: "RlPNh_PBZb4", title: "Vampire – Olivia Rodrigo" },
+    { videoId: "GxldQ9eX2wo", title: "Stephen Sanchez - Until I Found You" },
+    { videoId: "1_MmmpDkbgo", title: "Ed Sheeran - Perfect" },
+    { videoId: "EZKjxn14gO4", title: "ORDINARY" },
   ]),
   makeTracks("oldclassic", "Old Classics", [
     { videoId: "fJ9rUzIMcZQ", title: "Bohemian Rhapsody – Queen" },
@@ -61,8 +64,7 @@ export const CATEGORIES: Category[] = [
     { videoId: "09839DpTctU", title: "Hotel California – Eagles" },
     { videoId: "xFrGuyw1V8s", title: "Dancing Queen – ABBA" },
     { videoId: "1w7OgIMMRc4", title: "Sweet Child O' Mine – Guns N' Roses" },
-    { videoId: "fNFzfwOE66U", title: "Stayin' Alive – Bee Gees" },
-    { videoId: "hTWKbfoikeg", title: "Smells Like Teen Spirit – Nirvana" },
+    { videoId: "Q2FzZSBD5LE", title: "Deep Purple - Smoke On the Water" },
   ]),
   makeTracks("georgian", "Georgia Hits", [
     {
@@ -75,15 +77,19 @@ export const CATEGORIES: Category[] = [
     },
     { videoId: "l7bjfR9muNs", title: "Tamada - Piramde" },
     {
-      videoId: "Ai3nowbLU8",
-      title: "მუხამბაზი",
+      videoId: "gry3SYqLfl0",
+      title: "სამშობლო",
     },
-    { videoId: FALLBACK_VIDEO_ID, title: "Sulkhan-Saba – Trio Mandili" },
+    { videoId: "im93RBMcuXc", title: "LOUDspeakers - World In My Eyes" },
     {
-      videoId: FALLBACK_VIDEO_ID,
-      title: "Ghazali (ღაზალი) – Hamlet Gonashvili",
+      videoId: "1X3xW-KHS-Q",
+      title: "როგორ არ დამელია",
     },
-    { videoId: FALLBACK_VIDEO_ID, title: "Is evari – Tbilisuri Quarteti" },
+
+    {
+      videoId: "Uc0KAemR-NI",
+      title: "MGZAVREBI - Chveni Ambavi",
+    },
   ]),
   makeTracks("movie", "Movie Music", [
     {
@@ -92,25 +98,32 @@ export const CATEGORIES: Category[] = [
     },
     { videoId: "btPJPFnesV4", title: "Eye of the Tiger – Survivor (Rocky)" },
     {
-      videoId: "DtB7pFkVFp0",
-      title: "Imperial March – John Williams (Star Wars)",
+      videoId: "wp43OdtAAkM",
+      title: "Running Up That Hill",
     },
-    {
-      videoId: "3K0R2jJK5oE",
-      title:
-        "He's a Pirate – Klaus Badelt/Hans Zimmer (Pirates of the Caribbean)",
-    },
-    {
-      videoId: "tan5p4b4N_s",
-      title: "Shallow – Lady Gaga & Bradley Cooper (A Star Is Born)",
-    },
+
     {
       videoId: "GibiNy4d4gc",
       title: "Circle of Life – Elton John (The Lion King)",
     },
     {
-      videoId: "Htaj3o3JD7I",
-      title: "Hedwig's Theme – John Williams (Harry Potter)",
+      videoId: "Xry6B0I3pT8",
+      title: "Shakira - Zootopia 2",
+    },
+
+    {
+      videoId: "fNFzfwLM72c",
+      title: "Bee Gees - Stayin' Alive",
+    },
+
+    {
+      videoId: "D8zlUUrFK-M",
+      title: "Jurassic Park theme song",
+    },
+
+    {
+      videoId: "hdcTmpvDO0I",
+      title: "Madagascar - I Like To Move It",
     },
   ]),
 ];
