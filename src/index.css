@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+@theme {
+  --color-kahoot-purple: #46178f;
+  --color-kahoot-blue: #45a3e5;
+  --color-kahoot-green: #66bf39;
+  --color-kahoot-orange: #eb670f;
+  --color-kahoot-red: #ff3355;
+  --font-size-base: 1.25rem;
+}
+
+html {
+  font-size: 1.125rem;
+}
+
+body {
+  @apply m-0 min-h-screen min-w-[320px] overflow-x-hidden antialiased;
+  background-color: var(--color-kahoot-purple);
+  color: #fff;
+}
+
+#root {
+  @apply min-h-screen w-full overflow-hidden;
+}

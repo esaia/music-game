@@ -1,0 +1,17 @@
+import { initializeApp } from "firebase/app";
+import { getDatabase } from "firebase/database";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDj1G8jIG-XOgUzhontgaGuVhQ4Z4z6x4A",
+  authDomain: "button-click-game-ff5d5.firebaseapp.com",
+  databaseURL:
+    "https://button-click-game-ff5d5-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "button-click-game-ff5d5",
+  storageBucket: "button-click-game-ff5d5.firebasestorage.app",
+  messagingSenderId: "34258391425",
+  appId: "1:34258391425:web:5ff49c998ab7183350d880",
+  measurementId: "G-FYHR551Q0F",
+};
+
+const app = initializeApp(firebaseConfig);
+export const db = getDatabase(app);
