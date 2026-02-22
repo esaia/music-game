@@ -131,7 +131,8 @@ export default function TrackModal({
     if (!isSlave || !syncedIsPlaying) return;
     const id = setInterval(() => {
       setSlaveProgressTime(
-        lastSyncedSeekRef.current + (Date.now() - lastSyncedAtRef.current) / 1000,
+        lastSyncedSeekRef.current +
+          (Date.now() - lastSyncedAtRef.current) / 1000,
       );
     }, 200);
     return () => clearInterval(id);
@@ -212,57 +213,58 @@ export default function TrackModal({
     let player: NonNullable<typeof playerRef.current> | undefined;
     try {
       player = new window.YT!.Player(PLAYER_CONTAINER_ID, {
-      videoId: track.youtubeVideoId,
-      width: "1",
-      height: "1",
-      playerVars: {
-        enablejsapi: 1,
-        controls: 0,
-        disablekb: 1,
-        fs: 0,
-        modestbranding: 1,
-        rel: 0,
-        showinfo: 0,
-      },
-      events: {
-        onReady: () => {
-          if (!player) return;
-          playerRef.current = player;
-          if (isSlave) {
-            setPlayerReady(true);
-            applySyncedState(player);
-            syncTimeoutRef.current = setTimeout(() => {
+        videoId: track.youtubeVideoId,
+        width: "1",
+        height: "1",
+        playerVars: {
+          enablejsapi: 1,
+          controls: 0,
+          disablekb: 1,
+          fs: 0,
+          modestbranding: 1,
+          rel: 0,
+          showinfo: 0,
+        },
+        events: {
+          onReady: () => {
+            if (!player) return;
+            playerRef.current = player;
+            if (isSlave) {
+              setPlayerReady(true);
+              applySyncedState(player);
+              syncTimeoutRef.current = setTimeout(() => {
+                const p = playerRef.current;
+                if (p) applySyncedState(p);
+                syncTimeoutRef.current = null;
+              }, 500);
+            }
+            if (typeof player.getDuration === "function") {
+              const d = player.getDuration();
+              if (d && !Number.isNaN(d)) setDuration(d);
+            }
+            timeIntervalRef.current = setInterval(() => {
               const p = playerRef.current;
-              if (p) applySyncedState(p);
-              syncTimeoutRef.current = null;
-            }, 500);
-          }
-          if (typeof player.getDuration === "function") {
-            const d = player.getDuration();
-            if (d && !Number.isNaN(d)) setDuration(d);
-          }
-          timeIntervalRef.current = setInterval(() => {
-            const p = playerRef.current;
-            if (!p || isSeekingRef.current) return;
-            if (typeof p.getCurrentTime === "function") {
-              const t = p.getCurrentTime();
-              if (typeof t === "number" && !Number.isNaN(t)) setCurrentTime(t);
-            }
-            if (typeof p.getDuration === "function") {
-              const dur = p.getDuration();
-              if (typeof dur === "number" && !Number.isNaN(dur) && dur > 0)
-                setDuration(dur);
-            }
-          }, 200);
+              if (!p || isSeekingRef.current) return;
+              if (typeof p.getCurrentTime === "function") {
+                const t = p.getCurrentTime();
+                if (typeof t === "number" && !Number.isNaN(t))
+                  setCurrentTime(t);
+              }
+              if (typeof p.getDuration === "function") {
+                const dur = p.getDuration();
+                if (typeof dur === "number" && !Number.isNaN(dur) && dur > 0)
+                  setDuration(dur);
+              }
+            }, 200);
+          },
+          onStateChange: (event: { data: number }) => {
+            const state = event.data;
+            setIsPlaying(state === YT_PLAYING);
+            setIsBuffering(state === YT_BUFFERING);
+            if (state === YT_PLAYING) setWaitingForPlay(false);
+          },
         },
-        onStateChange: (event: { data: number }) => {
-          const state = event.data;
-          setIsPlaying(state === YT_PLAYING);
-          setIsBuffering(state === YT_BUFFERING);
-          if (state === YT_PLAYING) setWaitingForPlay(false);
-        },
-      },
-    });
+      });
     } catch (err) {
       onClose?.();
       return () => {};
@@ -288,6 +290,11 @@ export default function TrackModal({
     const p = playerRef.current;
     if (buzzIns.length > 0 && p && typeof p.pauseVideo === "function") {
       p.pauseVideo();
+      const t = typeof p.getCurrentTime === "function" ? p.getCurrentTime() : 0;
+      onPlayerStateChangeRef.current?.({
+        isPlaying: false,
+        seekTime: typeof t === "number" && !Number.isNaN(t) ? t : 0,
+      });
     }
   }, [buzzIns.length]);
 
@@ -332,7 +339,7 @@ export default function TrackModal({
 
   return (
     <div
-      className={`fixed inset-0 z-[1000] flex h-screen items-center justify-center bg-black/80 ${isClosing ? "animate-fade-out pointer-events-none" : "animate-fade-in"}`}
+      className={`fixed inset-0 z-[1000] flex h-screen items-center justify-center bg-black/70 ${isClosing ? "animate-fade-out pointer-events-none" : "animate-fade-in"}`}
       onClick={onClose}
     >
       <div
@@ -356,7 +363,10 @@ export default function TrackModal({
               className="rounded-full px-4 py-2 text-base font-semibold text-white shadow-md md:text-lg"
               style={{
                 backgroundColor:
-                  KAHOOT_COLORS[CATEGORIES.findIndex((c) => c.id === category.id) % KAHOOT_COLORS.length],
+                  KAHOOT_COLORS[
+                    CATEGORIES.findIndex((c) => c.id === category.id) %
+                      KAHOOT_COLORS.length
+                  ],
               }}
             >
               {category.name}
