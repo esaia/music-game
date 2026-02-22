@@ -26,6 +26,16 @@ type TrackModalProps = {
   onAwardScore?: (teamKey: string, teamName: string) => void;
   revealed?: boolean;
   onReveal?: () => void;
+  /** When provided, host writes play/seek state so projector can sync */
+  onPlayerStateChange?: (state: {
+    isPlaying: boolean;
+    seekTime: number;
+  }) => void;
+  /** When provided, modal is driven by synced state (projector view) */
+  syncedIsPlaying?: boolean;
+  syncedSeekTime?: number;
+  /** When true, always show title and preview in modal (host view) */
+  alwaysShowTitleAndPreview?: boolean;
 };
 
 const PLAYER_CONTAINER_ID = "youtube-player-container";
@@ -56,6 +66,10 @@ export default function TrackModal({
   onAwardScore,
   revealed: revealedProp = false,
   onReveal,
+  onPlayerStateChange,
+  syncedIsPlaying,
+  syncedSeekTime,
+  alwaysShowTitleAndPreview = false,
 }: TrackModalProps) {
   const [localRevealed, setLocalRevealed] = useState(false);
   const [apiReady, setApiReady] = useState(Boolean(window.YT?.Player));
@@ -80,10 +94,29 @@ export default function TrackModal({
   isSeekingRef.current = isSeeking;
 
   const revealed = revealedProp ?? localRevealed;
+  const isSlave = syncedIsPlaying !== undefined;
 
   useEffect(() => {
     loadYouTubeAPI(() => setApiReady(true));
   }, []);
+
+  // Projector: apply synced play/seek state to player (seek first, then play/pause)
+  useEffect(() => {
+    if (!isSlave || !playerRef.current) return;
+    const p = playerRef.current;
+    if (
+      typeof syncedSeekTime === "number" &&
+      syncedSeekTime >= 0 &&
+      typeof p.seekTo === "function"
+    ) {
+      p.seekTo(syncedSeekTime, true);
+    }
+    if (syncedIsPlaying && typeof p.playVideo === "function") {
+      p.playVideo();
+    } else if (typeof p.pauseVideo === "function") {
+      p.pauseVideo();
+    }
+  }, [isSlave, syncedSeekTime, syncedIsPlaying]);
 
   useEffect(() => {
     if (!apiReady || !track) return;
@@ -163,15 +196,20 @@ export default function TrackModal({
   const handlePlayPause = () => {
     const p = playerRef.current;
     if (!p) return;
+    const nextPlaying = !isPlaying;
     if (isPlaying) {
       if (typeof p.pauseVideo === "function") p.pauseVideo();
     } else {
       setWaitingForPlay(true);
       if (typeof p.playVideo === "function") p.playVideo();
     }
+    const t =
+      typeof p.getCurrentTime === "function" ? p.getCurrentTime() : currentTime;
+    onPlayerStateChange?.({ isPlaying: nextPlaying, seekTime: t });
   };
 
-  const showPlayLoading = waitingForPlay || isBuffering;
+  const displayPlaying = isSlave ? syncedIsPlaying : isPlaying;
+  const showPlayLoading = isSlave ? false : waitingForPlay || isBuffering;
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     const p = playerRef.current;
@@ -179,6 +217,7 @@ export default function TrackModal({
     const sec = parseFloat(e.target.value);
     setCurrentTime(sec);
     p.seekTo(sec, true);
+    onPlayerStateChange?.({ isPlaying, seekTime: sec });
   };
 
   const handleSeekStart = () => setIsSeeking(true);
@@ -186,21 +225,23 @@ export default function TrackModal({
 
   return (
     <div
-      className="fixed inset-0 z-[1000] flex h-screen items-center justify-center bg-black/80 p-3"
+      className="animate-fade-in fixed inset-0 z-[1000] flex h-screen items-center justify-center bg-black/80 p-3"
       onClick={onClose}
     >
       <div
         className="relative flex h-full max-h-[100vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl  p-4 text-white"
         onClick={(e) => e.stopPropagation()}
       >
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close"
-          className="absolute right-2 top-2 flex h-10 w-10 items-center justify-center rounded-full border-0 bg-white/20 text-2xl leading-none text-white"
-        >
-          ×
-        </button>
+        {!isSlave && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="absolute right-2 top-2 flex h-12 w-12 cursor-pointer items-center justify-center rounded-full border-0 bg-white/20 text-3xl leading-none text-white"
+          >
+            ×
+          </button>
+        )}
 
         {/* Hidden YouTube player (audio only) */}
         <div className="absolute -left-[9999px] top-0 h-px w-px overflow-hidden">
@@ -208,102 +249,106 @@ export default function TrackModal({
         </div>
 
         {/* Custom audio control */}
-        <div className="mb-3 shrink-0 rounded-2xl bg-black/20 mt-20 p-3">
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={handlePlayPause}
-              disabled={showPlayLoading}
-              aria-label={
-                showPlayLoading ? "Loading" : isPlaying ? "Pause" : "Play"
-              }
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white text-[#46178f] disabled:opacity-90 disabled:cursor-wait"
-            >
-              {showPlayLoading ? (
-                <svg
-                  className="h-6 w-6 animate-spin"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  aria-hidden
-                >
-                  <circle
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    strokeDasharray="32 24"
-                  />
-                </svg>
-              ) : isPlaying ? (
-                <svg
-                  className="h-6 w-6"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
-                </svg>
-              ) : (
-                <svg
-                  className="ml-0.5 h-6 w-6"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M8 5v14l11-7L8 5z" />
-                </svg>
-              )}
-            </button>
+        <div className="animate-fade-down mb-3 shrink-0 rounded-2xl bg-black/20 mt-20 p-4">
+          <div className="flex items-center gap-4">
+            {!isSlave && (
+              <button
+                type="button"
+                onClick={handlePlayPause}
+                disabled={showPlayLoading}
+                aria-label={
+                  showPlayLoading ? "Loading" : displayPlaying ? "Pause" : "Play"
+                }
+                className="flex h-14 w-14 shrink-0 cursor-pointer items-center justify-center rounded-full bg-white text-[#46178f] disabled:cursor-wait disabled:opacity-90"
+              >
+                {showPlayLoading ? (
+                  <svg
+                    className="h-8 w-8 animate-spin"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    aria-hidden
+                  >
+                    <circle
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeDasharray="32 24"
+                    />
+                  </svg>
+                ) : displayPlaying ? (
+                  <svg
+                    className="h-8 w-8"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+                  </svg>
+                ) : (
+                  <svg
+                    className="ml-0.5 h-8 w-8"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M8 5v14l11-7L8 5z" />
+                  </svg>
+                )}
+              </button>
+            )}
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 text-lg text-white/90">
-                <span>{formatSeconds(currentTime)}</span>
-                <input
-                  type="range"
-                  min={0}
-                  max={duration || 100}
-                  step={0.1}
-                  value={currentTime}
-                  onChange={handleSeek}
-                  onMouseDown={handleSeekStart}
-                  onTouchStart={handleSeekStart}
-                  onMouseUp={handleSeekEnd}
-                  onTouchEnd={handleSeekEnd}
-                  className="h-3 w-full cursor-pointer appearance-none rounded-full bg-white/30 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
-                />
-                <span>{formatSeconds(duration || 0)}</span>
+                <div className="flex items-center gap-2 text-xl text-white/90">
+                  <span>{formatSeconds(currentTime)}</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={duration || 100}
+                    step={0.1}
+                    value={currentTime}
+                    onChange={handleSeek}
+                    onMouseDown={handleSeekStart}
+                    onTouchStart={handleSeekStart}
+                    onMouseUp={handleSeekEnd}
+                    onTouchEnd={handleSeekEnd}
+                    className="h-3 w-full cursor-pointer appearance-none rounded-full bg-white/30 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
+                  />
+                  <span>{formatSeconds(duration || 0)}</span>
+                </div>
               </div>
             </div>
-          </div>
         </div>
 
-        <div className="mb-3 shrink-0">
-          <button
-            type="button"
-            onClick={handleRevealToggle}
-            className="rounded-2xl bg-white px-6 py-3 text-lg font-bold text-[#46178f]"
-          >
-            {revealed ? "Hide title & photo" : "Reveal title & photo"}
-          </button>
-        </div>
+        {!isSlave && (
+          <div className="mb-3 shrink-0">
+            <button
+              type="button"
+              onClick={handleRevealToggle}
+              className="cursor-pointer rounded-2xl bg-white px-6 py-3 text-xl font-bold text-[#46178f]"
+            >
+              {revealed ? "Hide title & photo" : "Reveal title & photo"}
+            </button>
+          </div>
+        )}
 
         <div className="min-h-0 flex-1 overflow-y-auto">
-          {revealed && (
-            <div className="mb-3">
-              <h3 className="mb-2 text-xl font-bold md:text-2xl">
+          {(revealed || alwaysShowTitleAndPreview) && (
+            <div className="animate-scale-in mb-3">
+              <h3 className="mb-2 text-2xl font-bold md:text-3xl">
                 {track.title}
               </h3>
               <img
                 src={track.photoUrl}
                 alt=""
-                className="max-h-40 w-full rounded-2xl object-cover"
+                className="max-h-52 w-full rounded-2xl object-cover"
               />
             </div>
           )}
 
           {buzzIns.length > 0 && (
             <div>
-              <h4 className="mb-2 text-lg font-bold">Teams with answer</h4>
-              <ul className="space-y-1">
+              <h4 className="mb-2 text-xl font-bold md:text-2xl">Teams with answer</h4>
+              <ul className="space-y-2">
                 {[...buzzIns]
                   .sort(
                     (a, b) =>
@@ -312,51 +357,53 @@ export default function TrackModal({
                   .map(({ teamId, teamName, timestamp }, index) => (
                     <li
                       key={teamId}
-                      className={`flex items-center justify-between gap-2 rounded-2xl py-2 pl-3 pr-2 ${
+                      className={`flex items-center justify-between gap-2 rounded-2xl py-3 pl-4 pr-3 ${
                         index === 0
                           ? "border-2 border-white bg-white/25"
-                          : "bg-black/20"
+                          : "bg-white/25"
                       }`}
                     >
-                      <span className="min-w-0 flex-1 text-lg">
+                      <span className="min-w-0 flex-1 text-xl">
                         {index === 0 && (
-                          <span className="mr-2 rounded bg-white px-1.5 py-0.5 text-xs font-bold text-[#46178f]">
+                          <span className="mr-2 rounded bg-white px-2 py-0.5 text-sm font-bold text-[#46178f]">
                             First
                           </span>
                         )}
                         <span>{teamName}</span>
                         {timestamp != null && (
-                          <span className="ml-2 text-base text-white/70">
+                          <span className="ml-2 text-lg text-white/70">
                             {formatBuzzTime(timestamp)}
                           </span>
                         )}
                       </span>
-                      <div className="flex shrink-0 items-center gap-1">
-                        {onAwardScore && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              onAwardScore(teamId, teamName);
-                              onClose();
-                            }}
-                            className="rounded-xl bg-white px-3 py-1.5 text-sm font-bold text-[#46178f]"
-                            title="Team guessed correctly (+points)"
-                          >
-                            Correct
-                          </button>
-                        )}
-                        {onRemoveBuzzIn && (
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveBuzzIn(teamId)}
-                            className="rounded-full p-1.5 text-white/80"
-                            aria-label={`Remove ${teamName}`}
-                            title="Remove (accidental buzz)"
-                          >
-                            ×
-                          </button>
-                        )}
-                      </div>
+                      {!isSlave && (
+                        <div className="flex shrink-0 items-center gap-1">
+                          {onAwardScore && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onAwardScore(teamId, teamName);
+                                onClose();
+                              }}
+                              className="cursor-pointer rounded-xl bg-white px-4 py-2 text-base font-bold text-[#46178f]"
+                              title="Team guessed correctly (+points)"
+                            >
+                              Correct
+                            </button>
+                          )}
+                          {onRemoveBuzzIn && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveBuzzIn(teamId)}
+                              className="cursor-pointer rounded-full p-2 text-xl text-white/80"
+                              aria-label={`Remove ${teamName}`}
+                              title="Remove (accidental buzz)"
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </li>
                   ))}
               </ul>

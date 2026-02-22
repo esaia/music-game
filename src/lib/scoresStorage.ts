@@ -56,3 +56,10 @@ export function setScore(
   save(data);
   return getScores();
 }
+
+export function removeTeam(teamKey: string): ScoreEntry[] {
+  const data = load();
+  delete data[teamKey];
+  save(data);
+  return getScores();
+}

@@ -7,6 +7,7 @@
   --color-kahoot-orange: #eb670f;
   --color-kahoot-red: #ff3355;
   --font-size-base: 1.25rem;
+  --font-sans: "Nunito", ui-sans-serif, system-ui, sans-serif;
 }
 
 html {
@@ -14,6 +15,7 @@ html {
 }
 
 body {
+  font-family: "Nunito", ui-sans-serif, system-ui, sans-serif;
   @apply m-0 min-h-screen min-w-[320px] overflow-x-hidden antialiased;
   background-color: var(--color-kahoot-purple);
   color: #fff;
@@ -21,4 +23,47 @@ body {
 
 #root {
   @apply min-h-screen w-full overflow-hidden;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fade-down {
+  from {
+    opacity: 0;
+    transform: translateY(-100vh);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out forwards;
+}
+
+.animate-fade-down {
+  animation: fade-down 0.6s cubic-bezier(0.83, 0, 0.17, 1) forwards;
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-scale-in {
+  animation: scale-in 0.4s cubic-bezier(0.83, 0, 0.17, 1) forwards;
 }
