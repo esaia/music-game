@@ -21,6 +21,8 @@ export function isValidYoutubeVideoId(id: string): boolean {
 
 const POINTS = [5, 10, 15] as const;
 
+const FALLBACK_VIDEO_ID = "dQw4w9WgXcQ";
+
 function thumb(videoId: string) {
   return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
 }
@@ -38,15 +40,13 @@ function makeTracks(
       return {
         id: `${categoryId}-${i}`,
         points,
-        youtubeVideoId: item?.videoId ?? "dQw4w9WgXcQ",
+        youtubeVideoId: item?.videoId ?? FALLBACK_VIDEO_ID,
         title: item?.title ?? `${categoryName} Track ${i + 1}`,
-        photoUrl: thumb(item?.videoId ?? "dQw4w9WgXcQ"),
+        photoUrl: thumb(item?.videoId ?? FALLBACK_VIDEO_ID),
       };
     }),
   };
 }
-
-const FALLBACK_VIDEO_ID = "dQw4w9WgXcQ";
 
 export const CATEGORIES: Category[] = [
   makeTracks("modern", "Modern", [
